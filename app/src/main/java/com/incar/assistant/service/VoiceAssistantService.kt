@@ -124,6 +124,10 @@ class VoiceAssistantService : Service() {
 
                 override fun onError(errorMsg: String) {
                     updateOverlayFeedback(errorMsg)
+                    serviceScope.launch {
+                        delay(2000)
+                        hideOverlayUi()
+                    }
                 }
             })
         }
@@ -233,16 +237,6 @@ class VoiceAssistantService : Service() {
         showOverlayUi("点击唤醒", "正在聆听中...")
         // 激活 ASR 录音监听
         asrEngine.startListening()
-
-        // 启动安全超时自愈任务：如果4秒内未识别到有效语音，自动退回空闲并隐藏卡片
-        serviceScope.launch {
-            delay(4000)
-            if (tvFeedbackText?.text == "正在聆听中...") {
-                updateOverlayFeedback("未检测到语音指令")
-                delay(1500)
-                hideOverlayUi()
-            }
-        }
     }
 
     /**
