@@ -21,17 +21,13 @@ jobs:
 
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
+      with:
+        gradle-version: '8.5'
 
     - name: Build Debug APK
       run: |
-        chmod +x ./gradlew || true
-        # 如果没有 gradlew wrapper 则使用 gradle 系统命令构建
-        if [ -f "./gradlew" ]; then
-          ./gradlew assembleDebug --stacktrace
-        else
-          gradle wrapper
-          ./gradlew assembleDebug --stacktrace
-        fi
+        gradle assembleDebug --stacktrace
+
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
