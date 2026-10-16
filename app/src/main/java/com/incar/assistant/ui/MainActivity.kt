@@ -282,20 +282,14 @@ class MainActivity : AppCompatActivity() {
 
     /**
      * 连通性测试：调用心知天气获取当前天气
+     * 优先直接使用 API Key 模式（极速、免车机时间不同步误差），若失败再降级 HMAC-SHA1
      */
     private suspend fun testSeniverseConnection(uid: String, key: String): Pair<Boolean, String> =
         withContext(Dispatchers.IO) {
             try {
-                val ts = System.currentTimeMillis() / 1000
-                val ttl = 1800
-                val rawParams = "public_key=$uid&ts=$ts&ttl=$ttl"
-                val mac = Mac.getInstance("HmacSHA1")
-                mac.init(SecretKeySpec(key.toByteArray(Charsets.UTF_8), "HmacSHA1"))
-                val rawHmac = mac.doFinal(rawParams.toByteArray(Charsets.UTF_8))
-                val sig = android.util.Base64.encodeToString(rawHmac, android.util.Base64.NO_WRAP)
-                val encodedSig = URLEncoder.encode(sig, "UTF-8")
-
-                val queryUrl = "https://api.seniverse.com/v3/weather/now.json?location=taizhou&$rawParams&sig=$encodedSig"
+                // 1. 首选 API Key 直连（无需复杂加签，不受车机系统时间偏移影响）
+                val directKey = if (key.isNotEmpty()) key else uid
+                val queryUrl = "https://api.seniverse.com/v3/weather/now.json?key=$directKey&location=taizhou"
                 val url = URL(queryUrl)
                 val conn = url.openConnection() as HttpURLConnection
                 conn.connectTimeout = 5000
@@ -309,10 +303,38 @@ class MainActivity : AppCompatActivity() {
                     val now = result.getJSONObject("now")
                     val text = now.getString("text")
                     val temp = now.getString("temperature")
-                    Pair(true, "$text ${temp}℃")
-                } else {
-                    Pair(false, "HTTP $code")
+                    return@withContext Pair(true, "$text ${temp}℃")
                 }
+
+                // 2. 降级：若直接 key 失败且提供了 uid，尝试 HMAC-SHA1 签名
+                if (uid.isNotEmpty() && key.isNotEmpty()) {
+                    val ts = System.currentTimeMillis() / 1000
+                    val ttl = 1800
+                    val rawParams = "public_key=$uid&ts=$ts&ttl=$ttl"
+                    val mac = Mac.getInstance("HmacSHA1")
+                    mac.init(SecretKeySpec(key.toByteArray(Charsets.UTF_8), "HmacSHA1"))
+                    val rawHmac = mac.doFinal(rawParams.toByteArray(Charsets.UTF_8))
+                    val sig = android.util.Base64.encodeToString(rawHmac, android.util.Base64.NO_WRAP)
+                    val encodedSig = URLEncoder.encode(sig, "UTF-8")
+
+                    val sigUrl = "https://api.seniverse.com/v3/weather/now.json?location=taizhou&$rawParams&sig=$encodedSig"
+                    val sConn = URL(sigUrl).openConnection() as HttpURLConnection
+                    sConn.connectTimeout = 5000
+                    sConn.readTimeout = 5000
+                    if (sConn.responseCode == 200) {
+                        val response = sConn.inputStream.bufferedReader().use { it.readText() }
+                        val json = JSONObject(response)
+                        val result = json.getJSONArray("results").getJSONObject(0)
+                        val now = result.getJSONObject("now")
+                        val text = now.getString("text")
+                        val temp = now.getString("temperature")
+                        return@withContext Pair(true, "$text ${temp}℃")
+                    } else {
+                        return@withContext Pair(false, "HTTP ${sConn.responseCode}")
+                    }
+                }
+
+                Pair(false, "HTTP $code")
             } catch (e: Exception) {
                 Pair(false, e.localizedMessage ?: "连接失败")
             }

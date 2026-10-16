@@ -57,38 +57,53 @@ class InCarWeatherManager(
     }
 
     /**
-     * 请求心知天气 API（HMAC-SHA1 签名认证）
+     * 请求心知天气 API
+     * 采用双模请求：优先使用纯 API Key 直连（免系统时间误差），失败再走 HMAC-SHA1
      */
     private suspend fun fetchSeniverseWeather(location: String): String = withContext(Dispatchers.IO) {
         val uid = configManager?.seniverseUid?.takeIf { it.isNotEmpty() } ?: "PefHRpoRt6qUgIqpd"
         val key = configManager?.seniverseKey?.takeIf { it.isNotEmpty() } ?: "SffaVM_il5AqZBX0y"
 
-        if (uid.isEmpty() || key.isEmpty()) {
-            return@withContext "心知天气未授权，请在设置中输入 UID 与 Key"
+        if (uid.isEmpty() && key.isEmpty()) {
+            return@withContext "心知天气未授权，请在设置中输入 Key"
         }
 
         try {
+            // 模式 1: 直接 API Key
+            val directKey = if (key.isNotEmpty()) key else uid
+            val directUrl = "https://api.seniverse.com/v3/weather/now.json?key=$directKey&location=${URLEncoder.encode(location, "UTF-8")}"
+            val request1 = Request.Builder().url(directUrl).build()
+            val response1 = httpClient.newCall(request1).execute()
+            if (response1.isSuccessful) {
+                val body = response1.body?.string()
+                if (!body.isNullOrEmpty()) {
+                    val json = JSONObject(body)
+                    val results = json.getJSONArray("results").getJSONObject(0)
+                    val cityName = results.getJSONObject("location").getString("name")
+                    val now = results.getJSONObject("now")
+                    val text = now.getString("text")
+                    val temp = now.getString("temperature")
+                    return@withContext "$cityName 今天 $text，当前气温 $temp 度"
+                }
+            }
+
+            // 模式 2: HMAC-SHA1 签名备用
             val ts = (System.currentTimeMillis() / 1000).toString()
             val ttl = "1800"
-            val rawParams = "location=${URLEncoder.encode(location, "UTF-8")}&ts=$ts&ttl=$ttl&uid=$uid"
+            val rawParams = "location=${URLEncoder.encode(location, "UTF-8")}&public_key=$uid&ts=$ts&ttl=$ttl"
 
             val mac = Mac.getInstance("HmacSHA1")
             val secretKey = SecretKeySpec(key.toByteArray(Charsets.UTF_8), "HmacSHA1")
             mac.init(secretKey)
-            val sigBytes = mac.doFinal("ts=$ts&ttl=$ttl&uid=$uid".toByteArray(Charsets.UTF_8))
+            val sigBytes = mac.doFinal("public_key=$uid&ts=$ts&ttl=$ttl".toByteArray(Charsets.UTF_8))
             val signature = Base64.encodeToString(sigBytes, Base64.NO_WRAP)
 
             val url = "https://api.seniverse.com/v3/weather/now.json?$rawParams&sig=${URLEncoder.encode(signature, "UTF-8")}"
+            val request2 = Request.Builder().url(url).build()
+            val response2 = httpClient.newCall(request2).execute()
+            val body2 = response2.body?.string() ?: return@withContext "获取天气数据失败"
 
-            val request = Request.Builder()
-                .url(url)
-                .header("User-Agent", "HermesInCar/1.0")
-                .build()
-
-            val response = httpClient.newCall(request).execute()
-            val body = response.body?.string() ?: return@withContext "获取天气数据失败"
-
-            val json = JSONObject(body)
+            val json = JSONObject(body2)
             val results = json.getJSONArray("results").getJSONObject(0)
             val cityName = results.getJSONObject("location").getString("name")
             val now = results.getJSONObject("now")
@@ -98,7 +113,7 @@ class InCarWeatherManager(
             "$cityName 今天 $text，当前气温 $temp 度"
         } catch (e: Exception) {
             Log.e(TAG, "Seniverse request failed: ${e.message}")
-            "天气查询服务暂不可用"
+            "天气查询服务暂不可用: ${e.localizedMessage}"
         }
     }
 }
