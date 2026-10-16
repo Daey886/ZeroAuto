@@ -11,8 +11,8 @@ android {
         applicationId "com.incar.assistant"
         minSdk 26
         targetSdk 34
-        versionCode 10
-        versionName "1.0.0-beta.10" // 内测第十版：心知天气增加API Key直连(免疫车机时间误差)+大模型网关支持http/https自动补齐+增加GitHub在线检查更新弹窗(取消/更新)
+        versionCode 11
+        versionName "1.0.0-beta.11" // 内测第十一版：集成全模块自动化自检与测试(意图编译器、高德广播协议、硬件反射探针、多媒体播控)，支持连续点击标题5次隐藏/显示开发者测试模式
 
         ndk {
             abiFilters "arm64-v8a", "armeabi-v7a"
