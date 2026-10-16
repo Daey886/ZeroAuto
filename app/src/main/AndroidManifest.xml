@@ -19,7 +19,7 @@
         android:allowBackup="true"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@style/Theme.InCarVoiceAssistant">
+        android:theme="@style/Theme.ZeroAuto">
 
         <!-- 悬浮窗与后台语音主守护服务 -->
         <service

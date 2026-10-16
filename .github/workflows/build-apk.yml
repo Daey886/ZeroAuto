@@ -1,4 +1,4 @@
-name: Build In-Car Voice Assistant APK
+name: Build ZeroAuto APK
 
 on:
   push:
@@ -32,6 +32,6 @@ jobs:
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: in-car-voice-assistant-beta
+        name: zeroauto-v1.0.0-beta.1
         path: app/build/outputs/apk/debug/*.apk
         if-no-files-found: error

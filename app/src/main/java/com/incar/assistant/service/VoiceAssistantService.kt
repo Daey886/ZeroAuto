@@ -79,14 +79,14 @@ class VoiceAssistantService : Service() {
 
         val notification: Notification = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Notification.Builder(this, channelId)
-                .setContentTitle("车载助手守护中")
-                .setContentText("100% 本地离线驱动")
+                .setContentTitle("ZeroAuto 守护中")
+                .setContentText("0云端·0流量·纯本地闭环")
                 .setSmallIcon(android.R.drawable.ic_btn_speak_now)
                 .build()
         } else {
             Notification.Builder(this)
-                .setContentTitle("车载助手守护中")
-                .setContentText("100% 本地离线驱动")
+                .setContentTitle("ZeroAuto 守护中")
+                .setContentText("0云端·0流量·纯本地闭环")
                 .setSmallIcon(android.R.drawable.ic_btn_speak_now)
                 .build()
         }
