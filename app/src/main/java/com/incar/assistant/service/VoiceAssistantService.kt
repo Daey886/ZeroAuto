@@ -42,7 +42,8 @@ class VoiceAssistantService : Service() {
     private lateinit var mediaController: MediaMusicController
     private lateinit var systemManager: SystemOptimizeManager
     private lateinit var weatherManager: InCarWeatherManager
-    private val cloudLlm = com.incar.assistant.llm.CloudLlmAssistant()
+    private lateinit var configManager: com.incar.assistant.config.AppConfigManager
+    private lateinit var cloudLlm: com.incar.assistant.llm.CloudLlmAssistant
     private val intentParser = MultiIntentParser()
 
     // 悬浮窗口管理
@@ -58,11 +59,13 @@ class VoiceAssistantService : Service() {
         super.onCreate()
         startForegroundServiceNotification()
 
+        configManager = com.incar.assistant.config.AppConfigManager(this)
+        cloudLlm = com.incar.assistant.llm.CloudLlmAssistant(configManager)
         amapController = AmapAutoController(this)
         carHardware = LocalCarHardwareManager(this)
         mediaController = MediaMusicController(this)
         systemManager = SystemOptimizeManager(this)
-        weatherManager = InCarWeatherManager(this)
+        weatherManager = InCarWeatherManager(this, configManager)
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
     }
 

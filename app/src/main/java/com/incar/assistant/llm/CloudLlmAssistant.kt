@@ -16,14 +16,9 @@ import java.util.concurrent.TimeUnit
  * 对接 10Router 网关 (Claude / DeepSeek / GPT)
  * 仅在本地控制指令未命中时作为“车机外脑”兜底
  */
-class CloudLlmAssistant {
+class CloudLlmAssistant(private val configManager: com.incar.assistant.config.AppConfigManager) {
 
     private val TAG = "CloudLlmAssistant"
-
-    // 10Router 网关配置
-    private val BASE_URL = "http://192.168.10.88:20127/v1/chat/completions"
-    private val API_KEY = "sk-00466b0429712aa8ba67137f267a0e5b7fb5f86ae6143c68"
-    private val DEFAULT_MODEL = "cbcn/deepseek-v4-pro" // 极速且高智商
 
     private val httpClient = OkHttpClient.Builder()
         .connectTimeout(6, TimeUnit.SECONDS)
@@ -43,6 +38,14 @@ class CloudLlmAssistant {
      * 云端知识问答与闲聊
      */
     suspend fun askCloudLlm(question: String): String = withContext(Dispatchers.IO) {
+        val apiKey = configManager.llmApiKey
+        val baseUrl = configManager.llmBaseUrl
+        val model = configManager.llmModel
+
+        if (apiKey.isEmpty()) {
+            return@withContext "未配置大模型 API Key，请在设置界面手动授权"
+        }
+
         try {
             val messagesArray = JSONArray().apply {
                 put(JSONObject().apply {
@@ -56,7 +59,7 @@ class CloudLlmAssistant {
             }
 
             val payload = JSONObject().apply {
-                put("model", DEFAULT_MODEL)
+                put("model", model)
                 put("messages", messagesArray)
                 put("temperature", 0.5)
                 put("max_tokens", 100)
@@ -64,8 +67,8 @@ class CloudLlmAssistant {
 
             val requestBody = payload.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
             val request = Request.Builder()
-                .url(BASE_URL)
-                .addHeader("Authorization", "Bearer $API_KEY")
+                .url(baseUrl)
+                .addHeader("Authorization", "Bearer $apiKey")
                 .post(requestBody)
                 .build()
 

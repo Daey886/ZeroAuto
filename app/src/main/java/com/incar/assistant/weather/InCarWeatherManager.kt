@@ -19,13 +19,12 @@ import android.util.Base64
  * 1. 本地首选：高德广播缓存（0 API、0 流量、断网可用）
  * 2. 备选兜底：心知天气 API（长途跨城、多日预报、异地查询）
  */
-class InCarWeatherManager(private val context: Context) {
+class InCarWeatherManager(
+    private val context: Context,
+    private val configManager: com.incar.assistant.config.AppConfigManager? = null
+) {
 
-    private val TAG = "InCarWeather"
-
-    // 心知天气凭据
-    private val SENIVERSE_UID = "PefHRpoRt6qUgIqpd"
-    private val SENIVERSE_KEY = "SffaVM_il5AqZBX0y"
+    private val TAG = "InCarWeatherManager"
 
     private val httpClient = OkHttpClient.Builder()
         .connectTimeout(5, TimeUnit.SECONDS)
@@ -61,15 +60,22 @@ class InCarWeatherManager(private val context: Context) {
      * 请求心知天气 API（HMAC-SHA1 签名认证）
      */
     private suspend fun fetchSeniverseWeather(location: String): String = withContext(Dispatchers.IO) {
+        val uid = configManager?.seniverseUid?.takeIf { it.isNotEmpty() } ?: "PefHRpoRt6qUgIqpd"
+        val key = configManager?.seniverseKey?.takeIf { it.isNotEmpty() } ?: "SffaVM_il5AqZBX0y"
+
+        if (uid.isEmpty() || key.isEmpty()) {
+            return@withContext "心知天气未授权，请在设置中输入 UID 与 Key"
+        }
+
         try {
             val ts = (System.currentTimeMillis() / 1000).toString()
             val ttl = "1800"
-            val rawParams = "location=${URLEncoder.encode(location, "UTF-8")}&ts=$ts&ttl=$ttl&uid=$SENIVERSE_UID"
+            val rawParams = "location=${URLEncoder.encode(location, "UTF-8")}&ts=$ts&ttl=$ttl&uid=$uid"
 
             val mac = Mac.getInstance("HmacSHA1")
-            val secretKey = SecretKeySpec(SENIVERSE_KEY.toByteArray(Charsets.UTF_8), "HmacSHA1")
+            val secretKey = SecretKeySpec(key.toByteArray(Charsets.UTF_8), "HmacSHA1")
             mac.init(secretKey)
-            val sigBytes = mac.doFinal("ts=$ts&ttl=$ttl&uid=$SENIVERSE_UID".toByteArray(Charsets.UTF_8))
+            val sigBytes = mac.doFinal("ts=$ts&ttl=$ttl&uid=$uid".toByteArray(Charsets.UTF_8))
             val signature = Base64.encodeToString(sigBytes, Base64.NO_WRAP)
 
             val url = "https://api.seniverse.com/v3/weather/now.json?$rawParams&sig=${URLEncoder.encode(signature, "UTF-8")}"
