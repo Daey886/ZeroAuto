@@ -231,12 +231,22 @@ class VoiceAssistantService : Service() {
     }
 
     /**
-     * 点击悬浮球：触发唤醒、开启动态聆听超时兜底（如果无语音输入，4秒后自动安全退出）
+     * 点击悬浮球：触发唤醒、开启动态聆听超时兜底（如果无语音输入，6秒后自动安全退出）
      */
     private fun onFloatBallClicked() {
         showOverlayUi("点击唤醒", "正在聆听中...")
         // 激活 ASR 录音监听
         asrEngine.startListening()
+
+        // 保护定时器：如果由于车机识别引擎无反应，6秒后自动恢复卡片，避免一直卡在“正在聆听中...”
+        serviceScope.launch {
+            delay(6000)
+            if (tvFeedbackText?.text == "正在聆听中...") {
+                updateOverlayFeedback("未检测到语音输入")
+                delay(1500)
+                hideOverlayUi()
+            }
+        }
     }
 
     /**

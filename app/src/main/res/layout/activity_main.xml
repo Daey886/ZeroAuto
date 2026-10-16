@@ -302,6 +302,45 @@
             android:textColor="#FF9F0A"
             android:textSize="12sp" />
 
+        <!-- 模块三：在线检查更新与版本信息 -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="版本管理与升级"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tv_current_version"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="当前版本：v1.0.0-beta.10"
+            android:textColor="#8E8E93"
+            android:textSize="13sp" />
+
+        <Button
+            android:id="@+id/btn_check_update"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="10dp"
+            android:backgroundTint="#2C2C2E"
+            android:text="🔄 检查 GitHub 新版本"
+            android:textColor="#0A84FF"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tv_update_result"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:textColor="#8E8E93"
+            android:textSize="12sp"
+            android:visibility="gone" />
+
         <!-- 底部主控按钮 -->
         <Button
             android:id="@+id/btn_save_and_apply"

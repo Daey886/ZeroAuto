@@ -36,14 +36,20 @@ class CloudLlmAssistant(private val configManager: com.incar.assistant.config.Ap
 
     /**
      * 云端知识问答与闲聊
+     * 支持 http:// 与 https:// 任意 URL，兼容局域网内网穿透与自签名证书
      */
     suspend fun askCloudLlm(question: String): String = withContext(Dispatchers.IO) {
         val apiKey = configManager.llmApiKey
-        val baseUrl = configManager.llmBaseUrl
+        var baseUrl = configManager.llmBaseUrl.trim()
         val model = configManager.llmModel
 
         if (apiKey.isEmpty()) {
             return@withContext "未配置大模型 API Key，请在设置界面手动授权"
+        }
+
+        // 自动补齐协议头（若用户只输入了 IP 或域名）
+        if (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://")) {
+            baseUrl = "http://$baseUrl"
         }
 
         try {

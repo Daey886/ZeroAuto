@@ -57,8 +57,24 @@ class MainActivity : AppCompatActivity() {
         tvAuthStatusSummary = findViewById(R.id.tv_auth_status_summary)
         val btnRunEnvCheck = findViewById<Button>(R.id.btn_run_env_check)
         val tvEnvCheckResult = findViewById<TextView>(R.id.tv_env_check_result)
+        val btnCheckUpdate = findViewById<Button>(R.id.btn_check_update)
+        val tvUpdateResult = findViewById<TextView>(R.id.tv_update_result)
+        val tvCurrentVersion = findViewById<TextView>(R.id.tv_current_version)
         val btnSaveAndApply = findViewById<Button>(R.id.btn_save_and_apply)
         val btnTriggerTestCard = findViewById<Button>(R.id.btn_trigger_test_card)
+
+        // 设置当前版本展示
+        val currentVerName = try {
+            packageManager.getPackageInfo(packageName, 0).versionName
+        } catch (e: Exception) {
+            "v1.0.0-beta.10"
+        }
+        tvCurrentVersion.text = "当前版本：$currentVerName"
+
+        // 检查 GitHub 新版本
+        btnCheckUpdate.setOnClickListener {
+            checkGitHubUpdate(currentVerName, tvUpdateResult)
+        }
 
         // 回显设置开关状态
         switchWakeup.isChecked = configManager.isWakeupEnabled
@@ -168,9 +184,9 @@ class MainActivity : AppCompatActivity() {
         etSeniverseUid.setText(configManager.seniverseUid)
         etSeniverseKey.setText(configManager.seniverseKey)
 
-        // 测试大模型连通性
+        // 测试大模型连通性 (支持 http:// 与 https:// 任意 URL)
         btnTestLlm.setOnClickListener {
-            val url = etLlmUrl.text.toString().trim()
+            var url = etLlmUrl.text.toString().trim()
             val model = etLlmModel.text.toString().trim()
             val key = etLlmKey.text.toString().trim()
 
@@ -178,6 +194,12 @@ class MainActivity : AppCompatActivity() {
                 tvLlmResult.text = "请先输入 URL 和 Key"
                 tvLlmResult.setTextColor(0xFFFF3B30.toInt())
                 return@setOnClickListener
+            }
+
+            // 自动补齐协议头（无论用户输入 http 还是 https）
+            if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                url = "http://$url"
+                etLlmUrl.setText(url)
             }
 
             tvLlmResult.text = "正在连通性测试中..."
@@ -241,12 +263,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * 连通性测试：调用大模型 OpenAI 兼容接口 /chat/completions
+     * 连通性测试：调用大模型 OpenAI 兼容接口 /chat/completions (完全支持 http 与 https)
      */
     private suspend fun testLlmConnection(urlStr: String, model: String, apiKey: String): Pair<Boolean, String> =
         withContext(Dispatchers.IO) {
             try {
-                val endpoint = if (urlStr.endsWith("/chat/completions")) urlStr else "$urlStr/chat/completions"
+                var base = urlStr.trim()
+                if (!base.startsWith("http://") && !base.startsWith("https://")) {
+                    base = "http://$base"
+                }
+                val endpoint = if (base.endsWith("/chat/completions")) base else "$base/chat/completions"
                 val url = URL(endpoint)
                 val conn = url.openConnection() as HttpURLConnection
                 conn.requestMethod = "POST"
@@ -446,6 +472,71 @@ class MainActivity : AppCompatActivity() {
             }
 
             tvResult.text = sb.toString()
+        }
+    }
+
+    /**
+     * 检查 GitHub 最新 Release，支持取消或前往更新
+     */
+    private fun checkGitHubUpdate(currentVer: String, tvResult: TextView) {
+        tvResult.visibility = View.VISIBLE
+        tvResult.text = "正在检查 GitHub 最新版本..."
+        tvResult.setTextColor(0xFF0A84FF.toInt())
+
+        scope.launch {
+            val updateInfo = withContext(Dispatchers.IO) {
+                try {
+                    val url = URL("https://api.github.com/repos/Daey886/ZeroAuto/releases/latest")
+                    val conn = url.openConnection() as HttpURLConnection
+                    conn.connectTimeout = 5000
+                    conn.readTimeout = 5000
+                    conn.setRequestProperty("User-Agent", "ZeroAuto-App")
+                    if (conn.responseCode == 200) {
+                        val body = conn.inputStream.bufferedReader().use { it.readText() }
+                        val json = JSONObject(body)
+                        val tagName = json.getString("tag_name")
+                        val htmlUrl = json.getString("html_url")
+                        val bodyText = json.optString("body", "有新版本发布，建议更新")
+                        Triple(true, tagName, Pair(htmlUrl, bodyText))
+                    } else {
+                        Triple(false, "HTTP ${conn.responseCode}", Pair("", ""))
+                    }
+                } catch (e: Exception) {
+                    Triple(false, e.localizedMessage ?: "网络请求失败", Pair("", ""))
+                }
+            }
+
+            if (updateInfo.first) {
+                val latestTag = updateInfo.second
+                val downloadUrl = updateInfo.third.first
+                val releaseNotes = updateInfo.third.second
+
+                if (latestTag == currentVer || latestTag.contains(currentVer) || currentVer.contains(latestTag)) {
+                    tvResult.text = "已是最新版本 ($currentVer) ✓"
+                    tvResult.setTextColor(0xFF30D158.toInt())
+                } else {
+                    tvResult.text = "发现新版本：$latestTag (当前 $currentVer)"
+                    tvResult.setTextColor(0xFFFF9F0A.toInt())
+
+                    // 弹出更新提示框：包含“取消”和“更新新版本”
+                    android.app.AlertDialog.Builder(this@MainActivity)
+                        .setTitle("发现新版本 $latestTag")
+                        .setMessage("当前版本：$currentVer\n\n更新说明：\n$releaseNotes")
+                        .setPositiveButton("更新新版本") { _, _ ->
+                            try {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(downloadUrl))
+                                startActivity(intent)
+                            } catch (e: Exception) {
+                                Toast.makeText(this@MainActivity, "打开浏览器失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                        .setNegativeButton("取消", null)
+                        .show()
+                }
+            } else {
+                tvResult.text = "检查更新失败: ${updateInfo.second}"
+                tvResult.setTextColor(0xFFFF453A.toInt())
+            }
         }
     }
 }

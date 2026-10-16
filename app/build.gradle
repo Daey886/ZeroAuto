@@ -12,7 +12,7 @@ android {
         minSdk 26
         targetSdk 34
         versionCode 10
-        versionName "1.0.0-beta.10" // 内测第十版：修复心知天气连接失败问题(增加API Key直连模式，免疫车机时间误差)，强化网络错误具体回显
+        versionName "1.0.0-beta.10" // 内测第十版：心知天气增加API Key直连(免疫车机时间误差)+大模型网关支持http/https自动补齐+增加GitHub在线检查更新弹窗(取消/更新)
 
         ndk {
             abiFilters "arm64-v8a", "armeabi-v7a"
