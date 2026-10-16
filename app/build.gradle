@@ -11,8 +11,8 @@ android {
         applicationId "com.incar.assistant"
         minSdk 26
         targetSdk 34
-        versionCode 6
-        versionName "1.0.0-beta.6" // 内测第六版：固定签名解决无法覆盖安装，支持录音权限动态申请与多源自愈，云端授权增加实时测试连通性
+        versionCode 7
+        versionName "1.0.0-beta.7" // 内测第七版：修复悬浮球拖拽拉出屏幕边界，增加车机屏幕防越界与智能吸边
 
         ndk {
             abiFilters "arm64-v8a", "armeabi-v7a"

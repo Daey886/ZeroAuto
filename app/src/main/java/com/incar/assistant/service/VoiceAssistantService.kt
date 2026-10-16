@@ -148,11 +148,14 @@ class VoiceAssistantService : Service() {
             WindowManager.LayoutParams.TYPE_PHONE
         }
 
+        val displayMetrics = resources.displayMetrics
+        val screenWidth = displayMetrics.widthPixels
+        val screenHeight = displayMetrics.heightPixels
+
         floatBallParams = WindowManager.LayoutParams().apply {
             type = layoutType
             format = PixelFormat.TRANSLUCENT
-            flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+            flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
             gravity = Gravity.TOP or Gravity.START
             x = 20
             y = 300
@@ -160,7 +163,7 @@ class VoiceAssistantService : Service() {
             height = WindowManager.LayoutParams.WRAP_CONTENT
         }
 
-        // 触控拖拽与点击事件
+        // 触控拖拽与吸边限制
         floatBallView?.setOnTouchListener(object : View.OnTouchListener {
             private var initialX = 0
             private var initialY = 0
@@ -170,6 +173,11 @@ class VoiceAssistantService : Service() {
 
             override fun onTouch(v: View, event: MotionEvent): Boolean {
                 val params = floatBallParams ?: return false
+                val ballWidth = floatBallView?.width ?: 120
+                val ballHeight = floatBallView?.height ?: 120
+                val maxX = Math.max(0, screenWidth - ballWidth)
+                val maxY = Math.max(0, screenHeight - ballHeight)
+
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
                         initialX = params.x
@@ -184,8 +192,11 @@ class VoiceAssistantService : Service() {
                         val dy = (event.rawY - initialTouchY).toInt()
                         if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
                             isDrag = true
-                            params.x = initialX + dx
-                            params.y = initialY + dy
+                            // 严格限制在车机屏幕可视区域内，绝不超出窗口或丢失
+                            val targetX = (initialX + dx).coerceIn(0, maxX)
+                            val targetY = (initialY + dy).coerceIn(0, maxY)
+                            params.x = targetX
+                            params.y = targetY
                             windowManager.updateViewLayout(floatBallView, params)
                         }
                         return true
@@ -194,6 +205,12 @@ class VoiceAssistantService : Service() {
                         if (!isDrag) {
                             // 单击触发唤醒
                             onFloatBallClicked()
+                        } else {
+                            // 松手智能自动贴边（左边或右边）
+                            val currentX = params.x
+                            val snapX = if (currentX + ballWidth / 2 < screenWidth / 2) 16 else (maxX - 16)
+                            params.x = snapX
+                            windowManager.updateViewLayout(floatBallView, params)
                         }
                         return true
                     }
