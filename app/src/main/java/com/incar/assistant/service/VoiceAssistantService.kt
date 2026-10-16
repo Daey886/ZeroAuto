@@ -42,6 +42,7 @@ class VoiceAssistantService : Service() {
     private lateinit var mediaController: MediaMusicController
     private lateinit var systemManager: SystemOptimizeManager
     private lateinit var weatherManager: InCarWeatherManager
+    private val cloudLlm = com.incar.assistant.llm.CloudLlmAssistant()
     private val intentParser = MultiIntentParser()
 
     // 悬浮窗口管理
@@ -140,6 +141,11 @@ class VoiceAssistantService : Service() {
                     is MultiIntentParser.InCarAction.QueryWeather -> {
                         val w = weatherManager.queryWeather(action.city)
                         feedbackList.add(w)
+                    }
+                    is MultiIntentParser.InCarAction.AskCloudLlm -> {
+                        updateOverlayFeedback("思考中...")
+                        val ans = cloudLlm.askCloudLlm(action.query)
+                        feedbackList.add(ans)
                     }
                 }
             }

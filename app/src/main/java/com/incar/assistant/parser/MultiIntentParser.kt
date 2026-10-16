@@ -17,6 +17,7 @@ class MultiIntentParser {
         object OptimizeCar : InCarAction()
         object TurnOffScreen : InCarAction()
         data class QueryWeather(val city: String) : InCarAction()
+        data class AskCloudLlm(val query: String) : InCarAction()
     }
 
     /**
@@ -67,6 +68,11 @@ class MultiIntentParser {
         // 5. 息屏
         if (rawText.contains("息屏") || rawText.contains("关闭屏幕")) {
             actions.add(InCarAction.TurnOffScreen)
+        }
+
+        // 6. 云端大模型兜底（未命中任何车控/导航/音乐指令时作为百科外脑问答）
+        if (actions.isEmpty() && rawText.length >= 2) {
+            actions.add(InCarAction.AskCloudLlm(rawText))
         }
 
         return actions
