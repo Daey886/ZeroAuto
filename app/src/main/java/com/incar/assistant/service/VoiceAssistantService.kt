@@ -105,6 +105,13 @@ class VoiceAssistantService : Service() {
             setEventListener(object : LocalAsrEngine.AsrEventListener {
                 override fun onWakeWordDetected(keyword: String) {
                     showOverlayUi(keyword, "我在，请说...")
+                    // 启动聆听超时保护
+                    serviceScope.launch {
+                        delay(5000)
+                        if (tvFeedbackText?.text == "我在，请说...") {
+                            hideOverlayUi()
+                        }
+                    }
                 }
 
                 override fun onRecognizing(partialText: String) {
@@ -186,7 +193,7 @@ class VoiceAssistantService : Service() {
                     MotionEvent.ACTION_UP -> {
                         if (!isDrag) {
                             // 单击触发唤醒
-                            showOverlayUi("点击唤醒", "正在聆听中...")
+                            onFloatBallClicked()
                         }
                         return true
                     }
@@ -199,6 +206,25 @@ class VoiceAssistantService : Service() {
             windowManager.addView(floatBallView, floatBallParams)
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+    }
+
+    /**
+     * 点击悬浮球：触发唤醒、开启动态聆听超时兜底（如果无语音输入，4秒后自动安全退出）
+     */
+    private fun onFloatBallClicked() {
+        showOverlayUi("点击唤醒", "正在聆听中...")
+        // 激活 ASR 录音监听
+        asrEngine.startListening()
+
+        // 启动安全超时自愈任务：如果4秒内未识别到有效语音，自动退回空闲并隐藏卡片
+        serviceScope.launch {
+            delay(4000)
+            if (tvFeedbackText?.text == "正在聆听中...") {
+                updateOverlayFeedback("未检测到语音指令")
+                delay(1500)
+                hideOverlayUi()
+            }
         }
     }
 

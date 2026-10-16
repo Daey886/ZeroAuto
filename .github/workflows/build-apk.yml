@@ -2,7 +2,7 @@ name: Build ZeroAuto APK
 
 on:
   push:
-    branches: [ master, main ]
+    branches: [ beta, master, main ]
   workflow_dispatch:
 
 jobs:
