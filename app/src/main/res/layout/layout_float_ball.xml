@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 桌面悬浮球布局 (支持拖动、点击呼出卡片与语音) -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/layout_float_ball_root"
+    android:layout_width="60dp"
+    android:layout_height="60dp"
+    android:background="@android:color/transparent">
+
+    <ImageView
+        android:id="@+id/iv_float_icon"
+        android:layout_width="54dp"
+        android:layout_height="54dp"
+        android:layout_gravity="center"
+        android:background="@drawable/bg_float_ball"
+        android:padding="12dp"
+        android:src="@android:drawable/ic_btn_speak_now"
+        android:contentDescription="悬浮球" />
+
+</FrameLayout>

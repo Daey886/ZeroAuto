@@ -11,8 +11,8 @@ android {
         applicationId "com.incar.assistant"
         minSdk 26
         targetSdk 34
-        versionCode 3
-        versionName "1.0.0-beta.3" // 内测第三版：支持手动输入与试用授权（大模型 + 心知 API 动态配置）
+        versionCode 4
+        versionName "1.0.0-beta.4" // 内测第四版：补齐悬浮球UI、开关控制中心与聚合授权弹窗
 
         ndk {
             abiFilters "arm64-v8a", "armeabi-v7a"

@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="#1C1C1E"
+    android:padding="20dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="云端服务授权配置"
+            android:textColor="#FFFFFF"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="凭证仅保存在车机本地，供试用者输入私有 Key。"
+            android:textColor="#8E8E93"
+            android:textSize="12sp" />
+
+        <!-- 1. 大模型 -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="一、云端大模型 (10Router / OpenAI兼容)"
+            android:textColor="#30D158"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="API 端点 URL:"
+            android:textColor="#C7C7CC"
+            android:textSize="12sp" />
+
+        <EditText
+            android:id="@+id/dialog_et_llm_url"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:layout_marginTop="2dp"
+            android:background="#2C2C2E"
+            android:hint="http://192.168.10.88:20127/v1/chat/completions"
+            android:paddingHorizontal="10dp"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#636366"
+            android:textSize="13sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="模型名称 (Model):"
+            android:textColor="#C7C7CC"
+            android:textSize="12sp" />
+
+        <EditText
+            android:id="@+id/dialog_et_llm_model"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:layout_marginTop="2dp"
+            android:background="#2C2C2E"
+            android:hint="cbcn/deepseek-v4-pro"
+            android:paddingHorizontal="10dp"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#636366"
+            android:textSize="13sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="API Key:"
+            android:textColor="#C7C7CC"
+            android:textSize="12sp" />
+
+        <EditText
+            android:id="@+id/dialog_et_llm_key"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:layout_marginTop="2dp"
+            android:background="#2C2C2E"
+            android:hint="请输入大模型 API Key"
+            android:inputType="textPassword"
+            android:paddingHorizontal="10dp"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#636366"
+            android:textSize="13sp" />
+
+        <!-- 2. 心知天气 -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="二、心知天气 (长途/多天异地预报)"
+            android:textColor="#0A84FF"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="公钥 UID:"
+            android:textColor="#C7C7CC"
+            android:textSize="12sp" />
+
+        <EditText
+            android:id="@+id/dialog_et_seniverse_uid"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:layout_marginTop="2dp"
+            android:background="#2C2C2E"
+            android:hint="心知天气 UID"
+            android:paddingHorizontal="10dp"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#636366"
+            android:textSize="13sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="私钥 Key:"
+            android:textColor="#C7C7CC"
+            android:textSize="12sp" />
+
+        <EditText
+            android:id="@+id/dialog_et_seniverse_key"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:layout_marginTop="2dp"
+            android:background="#2C2C2E"
+            android:hint="心知天气私钥 Key"
+            android:inputType="textPassword"
+            android:paddingHorizontal="10dp"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#636366"
+            android:textSize="13sp" />
+
+        <Button
+            android:id="@+id/dialog_btn_confirm"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="20dp"
+            android:backgroundTint="#30D158"
+            android:text="确认并保存授权"
+            android:textColor="#FFFFFF"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+    </LinearLayout>
+</ScrollView>
