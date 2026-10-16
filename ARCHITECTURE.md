@@ -162,7 +162,8 @@
 
 ## 六、 部署与工程落地方案
 
-* **代码根路径**：`/opt/projects/in-car-voice-assistant`
+* **代码根路径**：`/opt/projects/ZeroAuto` (原 `in-car-voice-assistant`)
+* **GitHub 仓库**：`https://github.com/Daey886/ZeroAuto`
 * **运行形态**：Android 车机轻量原生 APK + 车载后台 Daemon 守护进程。
 * **连接与调试方式**：
   * USB 直连 ADB / 无线局域网 ADB (`adb connect <车机IP>:5555`)
