@@ -24,10 +24,6 @@ jobs:
       with:
         gradle-version: '8.5'
 
-    - name: Generate Keystore
-      run: |
-        keytool -genkey -v -keystore app/zeroauto.jks -alias zeroauto -keyalg RSA -keysize 2048 -validity 10000 -storepass zeroauto123 -keypass zeroauto123 -dname "CN=ZeroAuto, OU=Car, O=ZeroAuto, L=Taizhou, ST=Zhejiang, C=CN"
-
     - name: Build Release and Debug APK
       run: |
         gradle assembleRelease assembleDebug --stacktrace

@@ -55,6 +55,8 @@ class MainActivity : AppCompatActivity() {
 
         val btnOpenAuthDialog = findViewById<Button>(R.id.btn_open_auth_dialog)
         tvAuthStatusSummary = findViewById(R.id.tv_auth_status_summary)
+        val btnRunEnvCheck = findViewById<Button>(R.id.btn_run_env_check)
+        val tvEnvCheckResult = findViewById<TextView>(R.id.tv_env_check_result)
         val btnSaveAndApply = findViewById<Button>(R.id.btn_save_and_apply)
         val btnTriggerTestCard = findViewById<Button>(R.id.btn_trigger_test_card)
 
@@ -71,6 +73,11 @@ class MainActivity : AppCompatActivity() {
 
         // 检查悬浮窗权限与录音权限
         checkAndRequestPermissions()
+
+        // 一键车机环境与网络体检
+        btnRunEnvCheck.setOnClickListener {
+            runEnvironmentDiagnosis(tvEnvCheckResult)
+        }
 
         // 点击打开独立的授权配置弹窗
         btnOpenAuthDialog.setOnClickListener {
@@ -310,4 +317,113 @@ class MainActivity : AppCompatActivity() {
                 Pair(false, e.localizedMessage ?: "连接失败")
             }
         }
+
+    /**
+     * 一键车机环境与网络体检诊断
+     */
+    private fun runEnvironmentDiagnosis(tvResult: TextView) {
+        tvResult.text = "正在执行车机软硬件环境与网络体检，请稍候...\n"
+        tvResult.setTextColor(0xFF0A84FF.toInt())
+
+        scope.launch {
+            val sb = StringBuilder()
+            sb.append("📋 【车机软硬件环境与网络诊断报告】\n\n")
+
+            // 1. 麦克风录音权限检查
+            val hasRecordAudio = ContextCompat.checkSelfPermission(
+                this@MainActivity,
+                android.Manifest.permission.RECORD_AUDIO
+            ) == PackageManager.PERMISSION_GRANTED
+            if (hasRecordAudio) {
+                sb.append("1. 麦克风录音权限：已授权 ✓\n")
+            } else {
+                sb.append("1. 麦克风录音权限：未授权 ✗ (请前往车机设置授权)\n")
+            }
+
+            // 2. 悬浮窗显示权限检查
+            val hasOverlay = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                Settings.canDrawOverlays(this@MainActivity)
+            } else {
+                true
+            }
+            if (hasOverlay) {
+                sb.append("2. 悬浮窗显示权限：已开启 ✓\n")
+            } else {
+                sb.append("2. 悬浮窗显示权限：未开启 ✗ (无法显示悬浮球与卡片)\n")
+            }
+
+            // 3. 车机原生语音识别服务检测
+            val hasSpeechRecognizer = android.speech.SpeechRecognizer.isRecognitionAvailable(this@MainActivity)
+            if (hasSpeechRecognizer) {
+                sb.append("3. 原生语音识别引擎：支持 ✓ (车机自带系统级语音服务)\n")
+            } else {
+                sb.append("3. 原生语音识别引擎：不支持 ✗ (车机缺少原生 SpeechRecognizer 服务)\n")
+            }
+
+            // 4. 车机网络与连通性检测 (针对“软件无法获取联网”)
+            val netDiag = withContext(Dispatchers.IO) {
+                val results = mutableListOf<String>()
+                // 4.1 检查公网 HTTPS (百度/公共网关)
+                var publicOk = false
+                try {
+                    val conn = URL("https://www.baidu.com").openConnection() as HttpURLConnection
+                    conn.connectTimeout = 3000
+                    conn.readTimeout = 3000
+                    conn.requestMethod = "HEAD"
+                    val code = conn.responseCode
+                    if (code in 200..399) publicOk = true
+                } catch (e: Exception) {
+                    publicOk = false
+                }
+                results.add(if (publicOk) "公网 HTTPS 通信：正常 ✓" else "公网 HTTPS 通信：不通 ✗ (车机WiFi或4G未联网)")
+
+                // 4.2 检查明文 HTTP 通信 (测试 usesCleartextTraffic 是否生效)
+                var cleartextOk = false
+                try {
+                    val conn = URL("http://connectivitycheck.gstatic.com/generate_204").openConnection() as HttpURLConnection
+                    conn.connectTimeout = 3000
+                    conn.readTimeout = 3000
+                    conn.requestMethod = "GET"
+                    val code = conn.responseCode
+                    if (code == 204 || code in 200..399) cleartextOk = true
+                } catch (e: Exception) {
+                    cleartextOk = false
+                }
+                results.add(if (cleartextOk) "明文 HTTP 通信：已放行 ✓ (已兼容车载局域网HTTP)" else "明文 HTTP 通信：被系统拦截 ✗")
+
+                // 4.3 检查局域网大模型网关连通性 (若有配置)
+                val baseUrl = configManager.llmBaseUrl
+                if (baseUrl.isNotEmpty()) {
+                    var llmNetOk = false
+                    try {
+                        val conn = URL(baseUrl).openConnection() as HttpURLConnection
+                        conn.connectTimeout = 3000
+                        conn.readTimeout = 3000
+                        conn.requestMethod = "GET"
+                        val code = conn.responseCode
+                        if (code > 0) llmNetOk = true
+                    } catch (e: Exception) {
+                        llmNetOk = false
+                    }
+                    results.add(if (llmNetOk) "局域网模型网关 ($baseUrl)：可直达 ✓" else "局域网模型网关 ($baseUrl)：无法访问 ✗")
+                }
+                results
+            }
+
+            sb.append("4. 车机网络状态体检：\n")
+            netDiag.forEach { sb.append("   • $it\n") }
+
+            // 5. 总结判定
+            sb.append("\n【体检总结】：")
+            if (hasRecordAudio && hasOverlay && hasSpeechRecognizer) {
+                sb.append("车机基础环境均已就绪，可正常使用！")
+                tvResult.setTextColor(0xFF30D158.toInt())
+            } else {
+                sb.append("部分核心项未就绪，请根据上方红叉进行排查或赋权。")
+                tvResult.setTextColor(0xFFFF9F0A.toInt())
+            }
+
+            tvResult.text = sb.toString()
+        }
+    }
 }

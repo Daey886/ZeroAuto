@@ -217,6 +217,53 @@
             android:layout_marginVertical="16dp"
             android:background="#2C2C2E" />
 
+        <!-- 模块零：车机运行环境与联网体检 -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="车机硬件与网络环境体检"
+            android:textColor="#0A84FF"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="一键检查当前车机是否支持原生语音识别、悬浮窗、录音及互联网连通性。"
+            android:textColor="#8E8E93"
+            android:textSize="13sp" />
+
+        <Button
+            android:id="@+id/btn_run_env_check"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="12dp"
+            android:backgroundTint="#2C2C2E"
+            android:text="🔍 一键检测车机运行环境与网络"
+            android:textColor="#0A84FF"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tv_env_check_result"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:background="#1C1C1E"
+            android:padding="12dp"
+            android:text="体检状态：待体检（点击上方按钮开始诊断）"
+            android:textColor="#8E8E93"
+            android:textSize="12sp"
+            android:lineSpacingExtra="3dp" />
+
+        <!-- 分割线 -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginVertical="16dp"
+            android:background="#2C2C2E" />
+
         <!-- 模块二：云端能力授权入口按钮 -->
         <TextView
             android:layout_width="wrap_content"
