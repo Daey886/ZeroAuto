@@ -1,32 +1,22 @@
 package com.incar.assistant.asr
 
 import android.content.Context
+import android.media.AudioFormat
+import android.media.AudioRecord
+import android.media.MediaRecorder
 import android.util.Log
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
- * 车载本地离线唤醒词与 ASR 流式识别引擎
- * 基于 Sherpa-ONNX 拼音音素对齐与流式轻量模型
- * 零流量消耗、断网地库秒级响应
+ * 本地端侧 ASR 离线引擎
+ * 针对车机多麦克风、蓝牙通话抢占等场景，支持麦克风自动探测降级重试与音频流读取
  */
 class LocalAsrEngine(private val context: Context) {
-
-    private val TAG = "LocalAsrEngine"
-
-    // 自定义唤醒词（免训练，拼音动态对齐）
-    private var wakeWord = "大黄蜂"
-    
-    // 高频免唤醒开关（默认开启）
-    var isQuickCommandEnabled: Boolean = true
-
-    // 免唤醒高频词表（直接命中直接执行）
-    private val QUICK_COMMAND_SET = setOf(
-        "下一首", "切歌", "暂停", "继续播放",
-        "放大地图", "缩小地图", "退出导航",
-        "把窗户关上", "全车关窗", "息屏"
-    )
-
-    private var isListening = false
-    private var listener: AsrEventListener? = null
 
     interface AsrEventListener {
         fun onWakeWordDetected(keyword: String)
@@ -35,65 +25,123 @@ class LocalAsrEngine(private val context: Context) {
         fun onError(errorMsg: String)
     }
 
+    private var eventListener: AsrEventListener? = null
+    private var isListening = false
+    private var recordingJob: Job? = null
+    private val scope = CoroutineScope(Dispatchers.Default)
+
+    var isQuickCommandEnabled: Boolean = true
+
     fun setEventListener(listener: AsrEventListener) {
-        this.listener = listener
+        this.eventListener = listener
     }
 
-    /**
-     * 初始化 Sherpa-ONNX 本地声学与拼音模型
-     */
-    fun initModels() {
-        Log.i(TAG, "Initializing Sherpa-ONNX local offline ASR & KWS models...")
-        // 动态加载 assets 中的 sherpa-onnx 模型与 tokens.txt
-    }
-
-    /**
-     * 启动本地麦克风监听
-     */
     fun startListening() {
         if (isListening) return
         isListening = true
-        Log.i(TAG, "Local microphone stream started.")
-    }
 
-    /**
-     * 模拟识别输入流（测试与调度入口）
-     */
-    fun feedPcmChunk(pcmData: ShortArray, size: Int) {
-        // 底层 Sherpa-ONNX 处理音频帧
-    }
-
-    /**
-     * 处理识别出的文本流
-     */
-    fun onRawTextRecognized(text: String) {
-        val trimmed = text.trim()
-        if (trimmed.isEmpty()) return
-
-        // 1. 检查是否命中免唤醒高频指令
-        if (isQuickCommandEnabled && QUICK_COMMAND_SET.contains(trimmed)) {
-            Log.i(TAG, "Quick command hit directly: $trimmed")
-            listener?.onRecognized(trimmed)
-            return
+        recordingJob = scope.launch {
+            recordAudioLoop()
         }
-
-        // 2. 唤醒词判断
-        if (trimmed.contains(wakeWord)) {
-            listener?.onWakeWordDetected(wakeWord)
-            val command = trimmed.substringAfter(wakeWord).trim()
-            if (command.isNotEmpty()) {
-                listener?.onRecognized(command)
-            }
-        }
-    }
-
-    fun updateWakeWord(newWakeWord: String) {
-        this.wakeWord = newWakeWord
-        Log.i(TAG, "Wake word updated to: $newWakeWord (phoneme updated in-memory)")
     }
 
     fun stopListening() {
         isListening = false
-        Log.i(TAG, "Local microphone stream stopped.")
+        recordingJob?.cancel()
+        recordingJob = null
+    }
+
+    /**
+     * 录音主循环：带车机音频源动态探测与降级
+     */
+    private suspend fun recordAudioLoop() = withContext(Dispatchers.IO) {
+        val sampleRate = 16000
+        val channelConfig = AudioFormat.CHANNEL_IN_MONO
+        val audioFormat = AudioFormat.ENCODING_PCM_16BIT
+        val minBufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
+        val bufferSize = Math.max(minBufferSize, 2048)
+
+        // 车机音频源探测优先级：MIC -> DEFAULT -> VOICE_RECOGNITION
+        val audioSources = intArrayOf(
+            MediaRecorder.AudioSource.MIC,
+            MediaRecorder.AudioSource.DEFAULT,
+            MediaRecorder.AudioSource.VOICE_RECOGNITION
+        )
+
+        var audioRecord: AudioRecord? = null
+
+        for (source in audioSources) {
+            try {
+                val record = AudioRecord(source, sampleRate, channelConfig, audioFormat, bufferSize)
+                if (record.state == AudioRecord.STATE_INITIALIZED) {
+                    audioRecord = record
+                    Log.d("LocalAsrEngine", "AudioRecord initialized successfully with source: $source")
+                    break
+                } else {
+                    record.release()
+                }
+            } catch (e: SecurityException) {
+                withContext(Dispatchers.Main) {
+                    eventListener?.onError("缺少录音权限，请在车机设置中开启麦克风权限")
+                }
+                isListening = false
+                return@withContext
+            } catch (e: Exception) {
+                Log.w("LocalAsrEngine", "AudioSource $source failed: ${e.message}")
+            }
+        }
+
+        if (audioRecord == null) {
+            withContext(Dispatchers.Main) {
+                eventListener?.onError("车机麦克风被占用或初始化失败")
+            }
+            isListening = false
+            return@withContext
+        }
+
+        val buffer = ShortArray(bufferSize / 2)
+        try {
+            audioRecord.startRecording()
+        } catch (e: Exception) {
+            withContext(Dispatchers.Main) {
+                eventListener?.onError("启动录音失败: ${e.message}")
+            }
+            audioRecord.release()
+            isListening = false
+            return@withContext
+        }
+
+        var speechDetected = false
+        var speechCount = 0
+
+        while (isActive && isListening) {
+            val readCount = audioRecord.read(buffer, 0, buffer.size)
+            if (readCount > 0) {
+                // 计算音频音量振幅 (RMS)
+                var sum = 0.0
+                for (i in 0 until readCount) {
+                    sum += buffer[i] * buffer[i]
+                }
+                val rms = Math.sqrt(sum / readCount)
+
+                // 简单的车机噪音门限能量检测（检测车内是否有人说话）
+                if (rms > 800) {
+                    speechCount++
+                    if (speechCount >= 3 && !speechDetected) {
+                        speechDetected = true
+                        withContext(Dispatchers.Main) {
+                            eventListener?.onRecognizing("正在收音中...")
+                        }
+                    }
+                }
+            }
+        }
+
+        try {
+            audioRecord.stop()
+            audioRecord.release()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 }

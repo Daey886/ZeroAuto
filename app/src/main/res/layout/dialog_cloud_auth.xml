@@ -13,7 +13,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="云端服务授权配置"
+            android:text="🔐 云端能力授权配置"
             android:textColor="#FFFFFF"
             android:textSize="18sp"
             android:textStyle="bold" />
@@ -22,7 +22,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:text="凭证仅保存在车机本地，供试用者输入私有 Key。"
+            android:text="所有凭证均保存在车机本地。支持一键测试连通性验证！"
             android:textColor="#8E8E93"
             android:textSize="12sp" />
 
@@ -97,6 +97,34 @@
             android:textColorHint="#636366"
             android:textSize="13sp" />
 
+        <!-- 大模型连通性测试按钮与反馈结果 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/dialog_btn_test_llm"
+                android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:backgroundTint="#0A84FF"
+                android:text="⚡ 测试大模型连接"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/dialog_tv_llm_test_result"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:layout_weight="1"
+                android:text="未测试"
+                android:textColor="#8E8E93"
+                android:textSize="12sp" />
+        </LinearLayout>
+
         <!-- 2. 心知天气 -->
         <TextView
             android:layout_width="wrap_content"
@@ -147,6 +175,34 @@
             android:textColor="#FFFFFF"
             android:textColorHint="#636366"
             android:textSize="13sp" />
+
+        <!-- 心知天气连通性测试按钮与反馈结果 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/dialog_btn_test_weather"
+                android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:backgroundTint="#0A84FF"
+                android:text="⚡ 测试天气连接"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/dialog_tv_weather_test_result"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:layout_weight="1"
+                android:text="未测试"
+                android:textColor="#8E8E93"
+                android:textSize="12sp" />
+        </LinearLayout>
 
         <Button
             android:id="@+id/dialog_btn_confirm"

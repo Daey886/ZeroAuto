@@ -24,14 +24,20 @@ jobs:
       with:
         gradle-version: '8.5'
 
-    - name: Build Debug APK
+    - name: Generate Keystore
       run: |
-        gradle assembleDebug --stacktrace
+        keytool -genkey -v -keystore app/zeroauto.jks -alias zeroauto -keyalg RSA -keysize 2048 -validity 10000 -storepass zeroauto123 -keypass zeroauto123 -dname "CN=ZeroAuto, OU=Car, O=ZeroAuto, L=Taizhou, ST=Zhejiang, C=CN"
+
+    - name: Build Release and Debug APK
+      run: |
+        gradle assembleRelease assembleDebug --stacktrace
 
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
         name: zeroauto-v1.0.0-beta.1
-        path: app/build/outputs/apk/debug/*.apk
+        path: |
+          app/build/outputs/apk/release/*.apk
+          app/build/outputs/apk/debug/*.apk
         if-no-files-found: error
