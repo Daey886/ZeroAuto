@@ -174,11 +174,10 @@ class VoiceAssistantService : Service() {
             private var initialTouchX = 0f
             private var initialTouchY = 0f
             private var downTime = 0L
-            private var isDrag = false
-            private var dragOccurredInSession = false
-            private var lastDragTimestamp = 0L
+            private var isDraggingGesture = false
+            private var lastDragReleaseTime = 0L
 
-            // 车载屏幕滑动死区（TouchSlop，防抖阈值取 24 像素，过滤车身颠簸与手指微抖）
+            // 车载屏幕滑动死区（防抖阈值取 24 像素，过滤车身颠簸与手指微抖）
             private val touchSlop = try {
                 android.view.ViewConfiguration.get(this@VoiceAssistantService).scaledTouchSlop.coerceAtLeast(24)
             } catch (e: Exception) {
@@ -199,14 +198,8 @@ class VoiceAssistantService : Service() {
                         initialTouchX = event.rawX
                         initialTouchY = event.rawY
                         downTime = System.currentTimeMillis()
-                        isDrag = false
-
-                        // 关键状态保护：若距离上次拖拽不到 600ms（防止 updateViewLayout 触发伪 ACTION_DOWN 重置标记）
-                        if (System.currentTimeMillis() - lastDragTimestamp < 600L) {
-                            dragOccurredInSession = true
-                        } else {
-                            dragOccurredInSession = false
-                        }
+                        // 如果距离上次拖拽释放不到 800ms，说明处于松手吸边或连带触碰期，继承拖拽锁，禁止点击
+                        isDraggingGesture = (System.currentTimeMillis() - lastDragReleaseTime < 800L)
                         return true
                     }
                     MotionEvent.ACTION_MOVE -> {
@@ -214,11 +207,9 @@ class VoiceAssistantService : Service() {
                         val dy = (event.rawY - initialTouchY).toInt()
                         val distance = Math.hypot(dx.toDouble(), dy.toDouble())
 
-                        // 只要位移突破防抖死区，立即锁定拖动状态与拖动时间戳
-                        if (distance > touchSlop) {
-                            isDrag = true
-                            dragOccurredInSession = true
-                            lastDragTimestamp = System.currentTimeMillis()
+                        // 只要位移突破防抖死区，立即锁定为拖动
+                        if (distance > touchSlop || isDraggingGesture) {
+                            isDraggingGesture = true
                             val targetX = (initialX + dx).coerceIn(0, maxX)
                             val targetY = (initialY + dy).coerceIn(0, maxY)
                             params.x = targetX
@@ -227,32 +218,27 @@ class VoiceAssistantService : Service() {
                         }
                         return true
                     }
-                    MotionEvent.ACTION_UP -> {
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                         val duration = System.currentTimeMillis() - downTime
                         val dx = (event.rawX - initialTouchX).toInt()
                         val dy = (event.rawY - initialTouchY).toInt()
                         val totalDistance = Math.hypot(dx.toDouble(), dy.toDouble())
-                        val now = System.currentTimeMillis()
 
-                        // 车规级硬隔离：只要在本次会话中拖动过，或距离拖动结束不足 600ms，坚决只执行吸边，绝不触发倾听！
-                        if (isDrag || dragOccurredInSession || (now - lastDragTimestamp < 600L)) {
-                            lastDragTimestamp = now
+                        // 判定是否属于拖拽释放：发生过位移拖动、或者当前总位移超标、或者处于拖动冷却期
+                        if (isDraggingGesture || totalDistance > touchSlop || (System.currentTimeMillis() - lastDragReleaseTime < 800L)) {
+                            // 拖动后松手：坚决只执行贴边吸附，绝对禁止触发倾听！
+                            lastDragReleaseTime = System.currentTimeMillis()
+                            isDraggingGesture = false
                             val currentX = params.x
                             val snapX = if (currentX + ballWidth / 2 < screenWidth / 2) 16 else (maxX - 16)
                             params.x = snapX
                             windowManager.updateViewLayout(floatBallView, params)
-                        } else if (totalDistance <= touchSlop && duration < 300) {
-                            // 纯粹的静态短按单击，才触发倾听
+                        } else if (totalDistance <= touchSlop && duration in 30..350) {
+                            // 纯粹且严格的原地轻触短按，才触发倾听
                             onFloatBallClicked()
                         }
 
-                        isDrag = false
-                        dragOccurredInSession = false
-                        return true
-                    }
-                    MotionEvent.ACTION_CANCEL -> {
-                        isDrag = false
-                        dragOccurredInSession = false
+                        isDraggingGesture = false
                         return true
                     }
                 }
