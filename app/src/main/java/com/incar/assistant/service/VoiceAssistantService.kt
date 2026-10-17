@@ -167,7 +167,7 @@ class VoiceAssistantService : Service() {
             height = WindowManager.LayoutParams.WRAP_CONTENT
         }
 
-        // 触控拖拽与吸边限制（增加双重防误触与时间位移双重判定）
+        // 触控拖拽与吸边限制（车规级拖拽硬隔离锁，彻底杜绝放开误触倾听）
         floatBallView?.setOnTouchListener(object : View.OnTouchListener {
             private var initialX = 0
             private var initialY = 0
@@ -175,7 +175,8 @@ class VoiceAssistantService : Service() {
             private var initialTouchY = 0f
             private var downTime = 0L
             private var isDrag = false
-            private var hasMoved = false
+            private var dragOccurredInSession = false
+            private var lastDragTimestamp = 0L
 
             // 车载屏幕滑动死区（TouchSlop，防抖阈值取 24 像素，过滤车身颠簸与手指微抖）
             private val touchSlop = try {
@@ -191,7 +192,7 @@ class VoiceAssistantService : Service() {
                 val maxX = Math.max(0, screenWidth - ballWidth)
                 val maxY = Math.max(0, screenHeight - ballHeight)
 
-                when (event.action) {
+                when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
                         initialX = params.x
                         initialY = params.y
@@ -199,7 +200,13 @@ class VoiceAssistantService : Service() {
                         initialTouchY = event.rawY
                         downTime = System.currentTimeMillis()
                         isDrag = false
-                        hasMoved = false
+
+                        // 关键状态保护：若距离上次拖拽不到 600ms（防止 updateViewLayout 触发伪 ACTION_DOWN 重置标记）
+                        if (System.currentTimeMillis() - lastDragTimestamp < 600L) {
+                            dragOccurredInSession = true
+                        } else {
+                            dragOccurredInSession = false
+                        }
                         return true
                     }
                     MotionEvent.ACTION_MOVE -> {
@@ -207,10 +214,11 @@ class VoiceAssistantService : Service() {
                         val dy = (event.rawY - initialTouchY).toInt()
                         val distance = Math.hypot(dx.toDouble(), dy.toDouble())
 
-                        // 只有位移突破防误触死区，才确认为拖动
+                        // 只要位移突破防抖死区，立即锁定拖动状态与拖动时间戳
                         if (distance > touchSlop) {
                             isDrag = true
-                            hasMoved = true
+                            dragOccurredInSession = true
+                            lastDragTimestamp = System.currentTimeMillis()
                             val targetX = (initialX + dx).coerceIn(0, maxX)
                             val targetY = (initialY + dy).coerceIn(0, maxY)
                             params.x = targetX
@@ -224,24 +232,27 @@ class VoiceAssistantService : Service() {
                         val dx = (event.rawX - initialTouchX).toInt()
                         val dy = (event.rawY - initialTouchY).toInt()
                         val totalDistance = Math.hypot(dx.toDouble(), dy.toDouble())
+                        val now = System.currentTimeMillis()
 
-                        // 只有完全没有拖动位移、位移小于防抖死区且按下耗时小于 300ms，才视为真正的有效单击唤醒
-                        if (!isDrag && !hasMoved && totalDistance <= touchSlop && duration < 300) {
-                            onFloatBallClicked()
-                        } else if (isDrag || hasMoved) {
-                            // 松手智能平滑吸附停靠到屏幕左边或右边
+                        // 车规级硬隔离：只要在本次会话中拖动过，或距离拖动结束不足 600ms，坚决只执行吸边，绝不触发倾听！
+                        if (isDrag || dragOccurredInSession || (now - lastDragTimestamp < 600L)) {
+                            lastDragTimestamp = now
                             val currentX = params.x
                             val snapX = if (currentX + ballWidth / 2 < screenWidth / 2) 16 else (maxX - 16)
                             params.x = snapX
                             windowManager.updateViewLayout(floatBallView, params)
+                        } else if (totalDistance <= touchSlop && duration < 300) {
+                            // 纯粹的静态短按单击，才触发倾听
+                            onFloatBallClicked()
                         }
+
                         isDrag = false
-                        hasMoved = false
+                        dragOccurredInSession = false
                         return true
                     }
                     MotionEvent.ACTION_CANCEL -> {
                         isDrag = false
-                        hasMoved = false
+                        dragOccurredInSession = false
                         return true
                     }
                 }
