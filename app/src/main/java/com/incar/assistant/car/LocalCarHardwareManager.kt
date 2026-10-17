@@ -70,6 +70,9 @@ class LocalCarHardwareManager(private val context: Context) {
         }
     }
 
+    fun closeAllWindows() = setWindowPosition(WindowTarget.ALL, 0)
+    fun openAllWindows() = setWindowPosition(WindowTarget.ALL, 100)
+
     /**
      * 本地空调调节
      */

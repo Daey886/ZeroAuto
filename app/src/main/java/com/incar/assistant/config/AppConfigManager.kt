@@ -12,6 +12,9 @@ class AppConfigManager(context: Context) {
         context.getSharedPreferences("zero_auto_config", Context.MODE_PRIVATE)
 
     companion object {
+        const val THEME_ORB = "orb"
+        const val THEME_CAPSULE = "capsule"
+        const val THEME_AURORA = "aurora"
         // 开关配置 Key
         private const val KEY_WAKEUP_ENABLED = "wakeup_enabled"           // 离线语音唤醒开关
         private const val KEY_QUICK_COMMAND_ENABLED = "quick_cmd_enabled"  // 免唤醒快捷指令开关
@@ -24,6 +27,8 @@ class AppConfigManager(context: Context) {
         private const val KEY_VOICE_ROLE = "voice_role"                    // 角色语音/发音人: female_gentle, male_magnetic, mecha_cyber, cute_girl, elder_warm
         private const val KEY_WAKEUP_WORD = "wakeup_word"                  // 唤醒词
         private const val KEY_UI_MODE = "ui_mode"                          // UI交互模式: 0=纯语音无感(Zero UI), 1=大字居中卡片
+        private const val KEY_VISUAL_THEME = "visual_theme"
+        private const val KEY_MUSIC_REACTIVE = "music_reactive"
 
         // 授权与凭证 Key (大模型 + 心知天气)
         private const val KEY_LLM_BASE_URL = "llm_base_url"
@@ -69,6 +74,14 @@ class AppConfigManager(context: Context) {
     var uiMode: Int
         get() = sp.getInt(KEY_UI_MODE, 1) // 默认居中防拉伸大字卡片
         set(value) = sp.edit().putInt(KEY_UI_MODE, value).apply()
+
+    var visualTheme: String
+        get() = sp.getString(KEY_VISUAL_THEME, THEME_ORB) ?: THEME_ORB
+        set(value) = sp.edit().putString(KEY_VISUAL_THEME, value).apply()
+
+    var isMusicReactiveEnabled: Boolean
+        get() = sp.getBoolean(KEY_MUSIC_REACTIVE, true)
+        set(value) = sp.edit().putBoolean(KEY_MUSIC_REACTIVE, value).apply()
 
     // 3. 音乐平台与音量调节
     var musicPlatform: String

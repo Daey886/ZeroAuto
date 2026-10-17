@@ -26,6 +26,9 @@ import com.incar.assistant.media.MediaMusicController
 import com.incar.assistant.parser.MultiIntentParser
 import com.incar.assistant.system.SystemOptimizeManager
 import com.incar.assistant.weather.InCarWeatherManager
+import com.incar.assistant.voice.OfflineVoiceCoordinator
+import com.incar.assistant.ui.ThemeInteractionView
+import com.incar.assistant.ui.VoiceVisualState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -50,6 +53,7 @@ class VoiceAssistantService : Service() {
     private lateinit var weatherManager: InCarWeatherManager
     private lateinit var cloudLlm: CloudLlmAssistant
     private lateinit var asrEngine: LocalAsrEngine
+    private lateinit var voiceCoordinator: OfflineVoiceCoordinator
     private val intentParser = MultiIntentParser()
 
     // 悬浮窗口管理
@@ -63,6 +67,7 @@ class VoiceAssistantService : Service() {
     private var floatCardView: View? = null
     private var tvAsrText: TextView? = null
     private var tvFeedbackText: TextView? = null
+    private var themeOverlayView: ThemeInteractionView? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -75,6 +80,7 @@ class VoiceAssistantService : Service() {
         mediaController = MediaMusicController(this)
         systemManager = SystemOptimizeManager(this)
         weatherManager = InCarWeatherManager(this, configManager)
+        voiceCoordinator = OfflineVoiceCoordinator(this, configManager)
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
         // 初始化本地语音引擎
@@ -326,10 +332,9 @@ class VoiceAssistantService : Service() {
 
             val finalMsg = if (feedbackList.isEmpty()) "已为您执行" else feedbackList.joinToString("；")
             updateOverlayFeedback(finalMsg)
-
-            // 播报完毕自动延时隐藏悬浮窗（2.5秒后自动隐身）
-            delay(2500)
-            hideOverlayUi()
+            voiceCoordinator.speak(finalMsg, onStart = { updateOverlayFeedback("正在播报…") }, onDone = {
+                serviceScope.launch { delay(700); hideOverlayUi() }
+            })
         }
     }
 
@@ -341,6 +346,18 @@ class VoiceAssistantService : Service() {
             mediaController.startAudioDucking()
         }
         if (configManager.uiMode == 0) return // 纯语音无感模式不弹窗
+
+        // The selected prototype theme is rendered in the same overlay surface.
+        if (themeOverlayView == null) {
+            themeOverlayView = ThemeInteractionView(this).apply { theme = configManager.visualTheme }
+            val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY else WindowManager.LayoutParams.TYPE_PHONE
+            val params = WindowManager.LayoutParams(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT, type, WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN, PixelFormat.TRANSLUCENT)
+            params.gravity = Gravity.TOP or Gravity.START
+            try { windowManager.addView(themeOverlayView, params) } catch (_: Exception) { themeOverlayView = null }
+        }
+        themeOverlayView?.apply { transcript = if (feedback == "正在处理...") asrText else feedback; state = when { feedback.contains("聆听") -> VoiceVisualState.LISTENING; feedback.contains("思考") -> VoiceVisualState.THINKING; feedback.contains("播报") -> VoiceVisualState.SPEAKING; else -> VoiceVisualState.IDLE } }
+        themeOverlayView?.visibility = View.VISIBLE
+        return
 
         if (floatCardView == null) {
             val inflater = LayoutInflater.from(this)
@@ -378,6 +395,8 @@ class VoiceAssistantService : Service() {
 
     private fun updateOverlayFeedback(feedback: String) {
         tvFeedbackText?.text = feedback
+        themeOverlayView?.transcript = feedback
+        themeOverlayView?.state = if (feedback.contains("思考")) VoiceVisualState.THINKING else if (feedback.contains("播报")) VoiceVisualState.SPEAKING else VoiceVisualState.IDLE
     }
 
     private fun hideOverlayUi() {
@@ -385,6 +404,7 @@ class VoiceAssistantService : Service() {
             mediaController.stopAudioDucking()
         }
         floatCardView?.visibility = View.GONE
+        themeOverlayView?.visibility = View.GONE
     }
 
     private fun startForegroundServiceNotification() {
@@ -419,8 +439,10 @@ class VoiceAssistantService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         serviceScope.cancel()
+        voiceCoordinator.release()
         floatCardView?.let { windowManager.removeView(it) }
         floatBallView?.let { windowManager.removeView(it) }
+        themeOverlayView?.let { windowManager.removeView(it) }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

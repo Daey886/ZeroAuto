@@ -101,6 +101,9 @@ class MediaMusicController(private val context: Context) {
     }
 
     fun playOrPause() = sendMediaKeyEvent(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
+    fun play() = sendMediaKeyEvent(KeyEvent.KEYCODE_MEDIA_PLAY)
+    fun pause() = sendMediaKeyEvent(KeyEvent.KEYCODE_MEDIA_PAUSE)
+    fun next() = nextTrack()
     fun nextTrack() = sendMediaKeyEvent(KeyEvent.KEYCODE_MEDIA_NEXT)
     fun prevTrack() = sendMediaKeyEvent(KeyEvent.KEYCODE_MEDIA_PREVIOUS)
 
