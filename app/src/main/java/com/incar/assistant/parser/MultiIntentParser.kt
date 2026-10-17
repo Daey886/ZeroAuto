@@ -60,6 +60,28 @@ class MultiIntentParser {
             }
         }
 
+        // 3.5 音乐点歌与平台意图识别
+        val isMusicPlay = rawText.contains("播放") || rawText.contains("放首") || rawText.contains("我想听") || rawText.contains("听歌")
+        if (isMusicPlay) {
+            val app = when {
+                rawText.contains("网易云") -> "netease"
+                rawText.contains("汽水") -> "luna"
+                rawText.contains("qq音乐") || rawText.contains("QQ音乐") -> "qqmusic"
+                rawText.contains("酷我") -> "kuwo"
+                rawText.contains("酷狗") -> "kugou"
+                else -> ""
+            }
+            var keyword = rawText
+                .replace("用网易云", "").replace("网易云", "")
+                .replace("用汽水音乐", "").replace("汽水音乐", "")
+                .replace("用QQ音乐", "").replace("QQ音乐", "")
+                .replace("用酷我音乐", "").replace("酷我音乐", "")
+                .replace("用酷狗音乐", "").replace("酷狗音乐", "")
+            keyword = keyword.substringAfter("播放").substringAfter("放首").substringAfter("我想听").substringAfter("听歌").trim()
+            if (keyword.isEmpty() || keyword == "音乐") keyword = "热门歌曲"
+            actions.add(InCarAction.PlayMusic(keyword, app))
+        }
+
         // 4. 车机优化
         if (rawText.contains("优化车机") || rawText.contains("加速车机") || rawText.contains("清理后台")) {
             actions.add(InCarAction.OptimizeCar)

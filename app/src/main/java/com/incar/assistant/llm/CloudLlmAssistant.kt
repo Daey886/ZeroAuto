@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit
 
 /**
  * 云端大模型百科与闲聊辅助中枢
- * 对接 10Router 网关 (Claude / DeepSeek / GPT)
+ * 对接 10Router 网关 (DeepSeek / Qwen / GPT)
  * 仅在本地控制指令未命中时作为“车机外脑”兜底
  */
 class CloudLlmAssistant(private val configManager: com.incar.assistant.config.AppConfigManager) {

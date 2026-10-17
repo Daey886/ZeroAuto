@@ -86,7 +86,7 @@
                 android:layout_width="140dp"
                 android:layout_height="40dp"
                 android:background="#1C1C1E"
-                android:hint="大黄蜂"
+                android:hint="零度零度"
                 android:paddingHorizontal="10dp"
                 android:textColor="#30D158"
                 android:textColorHint="#48484A"

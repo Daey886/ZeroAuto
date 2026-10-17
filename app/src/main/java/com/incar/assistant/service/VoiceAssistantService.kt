@@ -167,13 +167,22 @@ class VoiceAssistantService : Service() {
             height = WindowManager.LayoutParams.WRAP_CONTENT
         }
 
-        // 触控拖拽与吸边限制
+        // 触控拖拽与吸边限制（增加双重防误触与时间位移双重判定）
         floatBallView?.setOnTouchListener(object : View.OnTouchListener {
             private var initialX = 0
             private var initialY = 0
             private var initialTouchX = 0f
             private var initialTouchY = 0f
+            private var downTime = 0L
             private var isDrag = false
+            private var hasMoved = false
+
+            // 车载屏幕滑动死区（TouchSlop，防抖阈值取 24 像素，过滤车身颠簸与手指微抖）
+            private val touchSlop = try {
+                android.view.ViewConfiguration.get(this@VoiceAssistantService).scaledTouchSlop.coerceAtLeast(24)
+            } catch (e: Exception) {
+                24
+            }
 
             override fun onTouch(v: View, event: MotionEvent): Boolean {
                 val params = floatBallParams ?: return false
@@ -188,15 +197,20 @@ class VoiceAssistantService : Service() {
                         initialY = params.y
                         initialTouchX = event.rawX
                         initialTouchY = event.rawY
+                        downTime = System.currentTimeMillis()
                         isDrag = false
+                        hasMoved = false
                         return true
                     }
                     MotionEvent.ACTION_MOVE -> {
                         val dx = (event.rawX - initialTouchX).toInt()
                         val dy = (event.rawY - initialTouchY).toInt()
-                        if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+                        val distance = Math.hypot(dx.toDouble(), dy.toDouble())
+
+                        // 只有位移突破防误触死区，才确认为拖动
+                        if (distance > touchSlop) {
                             isDrag = true
-                            // 严格限制在车机屏幕可视区域内，绝不超出窗口或丢失
+                            hasMoved = true
                             val targetX = (initialX + dx).coerceIn(0, maxX)
                             val targetY = (initialY + dy).coerceIn(0, maxY)
                             params.x = targetX
@@ -206,16 +220,28 @@ class VoiceAssistantService : Service() {
                         return true
                     }
                     MotionEvent.ACTION_UP -> {
-                        if (!isDrag) {
-                            // 单击触发唤醒
+                        val duration = System.currentTimeMillis() - downTime
+                        val dx = (event.rawX - initialTouchX).toInt()
+                        val dy = (event.rawY - initialTouchY).toInt()
+                        val totalDistance = Math.hypot(dx.toDouble(), dy.toDouble())
+
+                        // 只有完全没有拖动位移、位移小于防抖死区且按下耗时小于 300ms，才视为真正的有效单击唤醒
+                        if (!isDrag && !hasMoved && totalDistance <= touchSlop && duration < 300) {
                             onFloatBallClicked()
-                        } else {
-                            // 松手智能自动贴边（左边或右边）
+                        } else if (isDrag || hasMoved) {
+                            // 松手智能平滑吸附停靠到屏幕左边或右边
                             val currentX = params.x
                             val snapX = if (currentX + ballWidth / 2 < screenWidth / 2) 16 else (maxX - 16)
                             params.x = snapX
                             windowManager.updateViewLayout(floatBallView, params)
                         }
+                        isDrag = false
+                        hasMoved = false
+                        return true
+                    }
+                    MotionEvent.ACTION_CANCEL -> {
+                        isDrag = false
+                        hasMoved = false
                         return true
                     }
                 }
@@ -278,11 +304,8 @@ class VoiceAssistantService : Service() {
                         feedbackList.add("已添加途经点 ${action.waypoint}")
                     }
                     is MultiIntentParser.InCarAction.PlayMusic -> {
-                        if (action.app == "luna") {
-                            mediaController.playLunaMusic(action.keyword)
-                        } else {
-                            mediaController.playNeteaseSong(action.keyword)
-                        }
+                        val targetPlatform = if (action.app.isNotEmpty() && action.app != "netease") action.app else configManager.musicPlatform
+                        mediaController.dispatchPlayMusic(action.keyword, targetPlatform)
                         feedbackList.add("正在为您播放 ${action.keyword}")
                     }
                     is MultiIntentParser.InCarAction.OptimizeCar -> {
@@ -317,6 +340,9 @@ class VoiceAssistantService : Service() {
      * 3. 弹出自适应车载居中卡片 UI
      */
     private fun showOverlayUi(asrText: String, feedback: String) {
+        if (configManager.isAudioDuckEnabled) {
+            mediaController.startAudioDucking()
+        }
         if (configManager.uiMode == 0) return // 纯语音无感模式不弹窗
 
         if (floatCardView == null) {
@@ -358,6 +384,9 @@ class VoiceAssistantService : Service() {
     }
 
     private fun hideOverlayUi() {
+        if (configManager.isAudioDuckEnabled) {
+            mediaController.stopAudioDucking()
+        }
         floatCardView?.visibility = View.GONE
     }
 

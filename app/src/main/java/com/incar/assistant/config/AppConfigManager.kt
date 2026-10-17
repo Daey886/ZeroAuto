@@ -18,6 +18,10 @@ class AppConfigManager(context: Context) {
         private const val KEY_FLOAT_BALL_ENABLED = "float_ball_enabled"    // 桌面悬浮球交互开关
         private const val KEY_BOOT_START_ENABLED = "boot_start_enabled"    // 开机自启动开关
         private const val KEY_AUDIO_DUCK_ENABLED = "audio_duck_enabled"    // 媒体闪避压制开关
+        private const val KEY_MUSIC_PLATFORM = "music_platform"            // 默认音乐平台: universal, netease, luna, qqmusic, kuwo, kugou
+        private const val KEY_MUSIC_VOLUME = "music_volume"                // 媒体音量 (0~100)
+        private const val KEY_VOICE_VOLUME = "voice_volume"                // 播报音量 (0~100)
+        private const val KEY_VOICE_ROLE = "voice_role"                    // 角色语音/发音人: female_gentle, male_magnetic, mecha_cyber, cute_girl, elder_warm
         private const val KEY_WAKEUP_WORD = "wakeup_word"                  // 唤醒词
         private const val KEY_UI_MODE = "ui_mode"                          // UI交互模式: 0=纯语音无感(Zero UI), 1=大字居中卡片
 
@@ -28,10 +32,11 @@ class AppConfigManager(context: Context) {
         private const val KEY_SENIVERSE_UID = "seniverse_uid"
         private const val KEY_SENIVERSE_KEY = "seniverse_key"
 
-        // 默认预设
-        const val DEFAULT_LLM_URL = "http://192.168.10.88:20127/v1/chat/completions"
-        const val DEFAULT_LLM_MODEL = "cbcn/deepseek-v4-pro"
-        const val DEFAULT_WAKEUP_WORD = "大黄蜂"
+        // 默认预设 (公网 DeepSeek 官方兼容端点，支持自定义修改)
+        const val DEFAULT_LLM_URL = "https://api.deepseek.com/v1/chat/completions"
+        const val DEFAULT_LLM_MODEL = "deepseek-chat"
+        const val DEFAULT_WAKEUP_WORD = "零度零度"
+        const val DEFAULT_MUSIC_PLATFORM = "universal"
     }
 
     // 1. 语音唤醒与识别开关
@@ -63,6 +68,23 @@ class AppConfigManager(context: Context) {
     var uiMode: Int
         get() = sp.getInt(KEY_UI_MODE, 1) // 默认居中防拉伸大字卡片
         set(value) = sp.edit().putInt(KEY_UI_MODE, value).apply()
+
+    // 3. 音乐平台与音量调节
+    var musicPlatform: String
+        get() = sp.getString(KEY_MUSIC_PLATFORM, DEFAULT_MUSIC_PLATFORM) ?: DEFAULT_MUSIC_PLATFORM
+        set(value) = sp.edit().putString(KEY_MUSIC_PLATFORM, value).apply()
+
+    var musicVolume: Int
+        get() = sp.getInt(KEY_MUSIC_VOLUME, 60)
+        set(value) = sp.edit().putInt(KEY_MUSIC_VOLUME, value.coerceIn(0, 100)).apply()
+
+    var voiceVolume: Int
+        get() = sp.getInt(KEY_VOICE_VOLUME, 80)
+        set(value) = sp.edit().putInt(KEY_VOICE_VOLUME, value.coerceIn(0, 100)).apply()
+
+    var voiceRole: String
+        get() = sp.getString(KEY_VOICE_ROLE, DEFAULT_VOICE_ROLE) ?: DEFAULT_VOICE_ROLE
+        set(value) = sp.edit().putString(KEY_VOICE_ROLE, value).apply()
 
     // 3. 云端大模型与心知天气授权凭据
     var llmBaseUrl: String
