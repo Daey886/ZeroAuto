@@ -37,6 +37,7 @@ class AppConfigManager(context: Context) {
         const val DEFAULT_LLM_MODEL = "deepseek-chat"
         const val DEFAULT_WAKEUP_WORD = "零度零度"
         const val DEFAULT_MUSIC_PLATFORM = "universal"
+        const val DEFAULT_VOICE_ROLE = "female_gentle"
     }
 
     // 1. 语音唤醒与识别开关
